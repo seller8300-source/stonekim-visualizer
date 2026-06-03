@@ -180,7 +180,20 @@
   .compare{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0}
   .compare figure{border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:#000}
   .compare figcaption{font-size:10px;color:var(--txt-dim);text-transform:uppercase;letter-spacing:1px;padding:7px 10px;border-bottom:1px solid var(--line)}
-  .compare img{width:100%;display:block;height:200px;object-fit:cover}
+  .compare img{width:100%;display:block;height:200px;object-fit:cover;cursor:zoom-in;transition:opacity .15s}
+  .compare img:hover{opacity:.85}
+  .cta-line{
+    flex:1;background:var(--panel-2);border:1px solid var(--line-2);color:var(--txt-dim);
+    padding:12px;border-radius:var(--r);font-size:13px;cursor:pointer;font-family:inherit;transition:.15s;
+  }
+  .cta-line:hover{border-color:var(--orange);color:var(--txt)}
+  #fullView{
+    display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.94);
+    align-items:center;justify-content:center;cursor:zoom-out;padding:20px;
+  }
+  #fullView.show{display:flex}
+  #fullView img{max-width:100%;max-height:100%;object-fit:contain;border-radius:4px}
+  #fullView .close-x{position:absolute;top:16px;right:24px;color:#fff;font-size:40px;cursor:pointer;line-height:1}
   .spec{
     background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
     padding:13px 16px;margin-bottom:12px;font-size:13px;display:flex;flex-wrap:wrap;gap:6px 18px;
@@ -317,14 +330,15 @@
   <div class="loading" id="loading">
     <div class="spinner"></div>
     <p>자재를 공간에 입히는 중입니다…</p>
+    <p style="margin-top:6px;color:var(--orange);font-weight:600"><span id="timer">0</span>초 경과 · 보통 20~40초 걸립니다</p>
   </div>
 
   <!-- RESULT -->
   <div class="result" id="result">
     <div class="result-h">생성된 <span class="o">시안</span></div>
     <div class="compare">
-      <figure><figcaption>BEFORE — 원본</figcaption><img id="beforeImg" alt=""></figure>
-      <figure><figcaption style="color:var(--orange)">AFTER — 시안</figcaption><img id="afterImg" alt=""></figure>
+      <figure><figcaption>BEFORE — 원본</figcaption><img id="beforeImg" alt="" onclick="openFull(this.src)"></figure>
+      <figure><figcaption style="color:var(--orange)">AFTER — 시안 <span style="color:var(--txt-dim2);font-size:9px">클릭하면 크게</span></figcaption><img id="afterImg" alt="" onclick="openFull(this.src)"></figure>
     </div>
     <div class="spec" id="resultSpec"></div>
     <div class="disc">본 이미지는 AI 참고 시안입니다. 실제 시공물은 자재 색상·줄눈·조명 환경에 따라 차이가 있을 수 있습니다.</div>
@@ -332,6 +346,10 @@
       <button class="cta dl" onclick="downloadImg()"><span class="ci">⬇</span>다운로드</button>
       <button class="cta est" onclick="toggleEst()"><span class="ci">📋</span>견적 문의</button>
       <a class="cta kakao" href="https://pf.kakao.com/" target="_blank" style="text-decoration:none"><span class="ci">💬</span>카톡 상담</a>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="cta-line" onclick="regenerate()">↻ 같은 설정으로 다시 만들기</button>
+      <button class="cta-line" onclick="resetAll()">＋ 새로 시작 (처음부터)</button>
     </div>
     <div class="est-form" id="estForm">
       <h3>견적 문의</h3>
@@ -341,6 +359,12 @@
       <button class="send" onclick="sendEst()">문의 보내기</button>
       <div class="est-note" id="estNote">선택하신 자재 정보가 함께 전송됩니다</div>
     </div>
+  </div>
+
+  <!-- 전체화면 이미지 뷰어 -->
+  <div id="fullView" onclick="closeFull()">
+    <span class="close-x">×</span>
+    <img id="fullImg" alt="">
   </div>
 
   <footer>STONE KIM · AI MATERIAL VISUALIZER — PREVIEW v1</footer>
@@ -621,10 +645,13 @@ function normalizeImage(dataURL){
 const SWATCH_MODELS = ['T-A013','T-A014','T-A015'];
 
 /* ---------- generate (실제 API) ---------- */
-let lastResult=null;
+let lastResult=null, timerInt=null;
 async function generate(){
   document.getElementById('genBtn').style.display='none';
   document.getElementById('loading').classList.add('show');
+  // 경과 시간 카운터
+  let sec=0; document.getElementById('timer').textContent='0';
+  timerInt=setInterval(()=>{sec++;document.getElementById('timer').textContent=sec;},1000);
   try{
     const norm=await normalizeImage(st.img);
     let maskURL=null;
@@ -655,9 +682,28 @@ async function generate(){
   }catch(e){
     alert('시안 생성 중 오류:\n'+e.message+'\n\n(API 키·결제 설정을 확인해주세요)');
   }finally{
+    if(timerInt){clearInterval(timerInt);timerInt=null;}
     document.getElementById('loading').classList.remove('show');
     document.getElementById('genBtn').style.display='block';
   }
+}
+
+/* 전체화면 이미지 뷰어 */
+function openFull(src){
+  if(!src)return;
+  document.getElementById('fullImg').src=src;
+  document.getElementById('fullView').classList.add('show');
+}
+function closeFull(){document.getElementById('fullView').classList.remove('show');}
+
+/* 같은 설정으로 다시 만들기 */
+function regenerate(){
+  document.getElementById('result').classList.remove('show');
+  generate();
+}
+/* 처음부터 새로 시작 */
+function resetAll(){
+  location.reload();
 }
 
 // 정규화된 1024 좌표계 기준 마스크 (offset/scale 반영)
