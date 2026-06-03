@@ -42,7 +42,7 @@ export default async function handler(req, res) {
     if (!image || !prompt) return res.status(400).json({ error: '이미지와 프롬프트가 필요합니다' });
 
     const form = new FormData();
-    form.append('model', 'gpt-image-2');
+    form.append('model', 'gpt-image-1.5');
     form.append('prompt', prompt);
     form.append('input_fidelity', 'high');
     form.append('quality', 'medium');
