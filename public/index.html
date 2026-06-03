@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STONE KIM · AI 시안 시뮬레이터</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&display=swap');
+
+  :root{
+    --bg:#1a1b1e;
+    --panel:#242529;
+    --panel-2:#2d2e33;
+    --line:#3a3b40;
+    --line-2:#4a4b52;
+    --orange:#ff5a1f;
+    --orange-soft:#ff7240;
+    --txt:#f7f7f8;
+    --txt-dim:#a8a9af;
+    --txt-dim2:#74757c;
+    --r:4px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    background:var(--bg);color:var(--txt);
+    font-family:'IBM Plex Sans KR',sans-serif;line-height:1.55;
+    min-height:100vh;
+  }
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.6;
+    background:
+      repeating-linear-gradient(90deg,transparent,transparent 47px,#ffffff08 47px,#ffffff08 48px),
+      repeating-linear-gradient(0deg,transparent,transparent 47px,#ffffff08 47px,#ffffff08 48px);
+  }
+  .wrap{max-width:760px;margin:0 auto;padding:0 18px 90px;position:relative;z-index:1}
+
+  /* header */
+  header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:20px 0 18px;border-bottom:1px solid var(--line);margin-bottom:26px;
+  }
+  .brand{display:flex;align-items:center;gap:11px}
+  .brand .mark{
+    width:34px;height:34px;background:var(--orange);border-radius:5px;
+    display:grid;place-items:center;font-family:'Anton';color:#000;font-size:13px;
+    transform:rotate(-4deg);line-height:.85;text-align:center;padding-top:2px;
+  }
+  .brand .nm{font-family:'Anton';font-size:21px;letter-spacing:.5px}
+  .brand .nm span{color:var(--orange)}
+  .badge{
+    font-size:10px;color:var(--txt-dim);border:1px solid var(--line-2);
+    padding:5px 10px;border-radius:20px;letter-spacing:.5px;
+  }
+
+  .hero{margin-bottom:30px}
+  .hero .eyebrow{
+    color:var(--orange);font-size:12px;font-weight:600;letter-spacing:3px;
+    text-transform:uppercase;margin-bottom:12px;
+  }
+  .hero h1{
+    font-family:'Anton';font-size:clamp(30px,8vw,46px);line-height:.98;
+    letter-spacing:-.5px;margin-bottom:14px;
+  }
+  .hero h1 .o{color:var(--orange)}
+  .hero p{color:var(--txt-dim);font-size:14px;max-width:520px}
+
+  /* step card */
+  .card{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+    margin-bottom:14px;overflow:hidden;transition:border-color .2s;
+  }
+  .card.active{border-color:var(--line-2)}
+  .card.done{border-color:#2c3a2c}
+  .card-h{display:flex;align-items:center;gap:12px;padding:16px 18px}
+  .step-n{
+    width:25px;height:25px;border-radius:50%;flex-shrink:0;
+    border:1.5px solid var(--line-2);color:var(--txt-dim);
+    display:grid;place-items:center;font-size:12px;font-weight:700;
+    font-family:'Anton';transition:.2s;
+  }
+  .card.active .step-n{background:var(--orange);border-color:var(--orange);color:#000}
+  .card.done .step-n{background:#3a5a3a;border-color:#3a5a3a;color:#fff}
+  .card-h h2{font-size:15px;font-weight:600;flex:1}
+  .card-h .sel-val{font-size:12.5px;color:var(--orange);font-weight:500;text-align:right;max-width:50%}
+  .card-b{padding:0 18px 18px;display:none}
+  .card.active .card-b,.card.open .card-b{display:block}
+
+  /* upload */
+  .drop{
+    border:1.5px dashed var(--line-2);border-radius:var(--r);background:var(--panel-2);
+    padding:40px 20px;text-align:center;cursor:pointer;transition:.18s;
+  }
+  .drop:hover{border-color:var(--orange);background:#332218}
+  .drop .ic{font-size:26px;opacity:.5;margin-bottom:10px}
+  .drop p{font-size:13px;color:var(--txt-dim)}
+  .drop p b{color:var(--txt)}
+  .drop.has{padding:0;border-style:solid;border-color:var(--line-2)}
+  .drop.has img{width:100%;display:block;max-height:340px;object-fit:contain;background:#000}
+
+  /* generic select grid */
+  .opt-grid{display:grid;gap:8px}
+  .opt-grid.cols2{grid-template-columns:1fr 1fr}
+  .opt-grid.cols3{grid-template-columns:repeat(3,1fr)}
+  .opt{
+    background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r);
+    padding:13px 14px;cursor:pointer;transition:.15s;text-align:left;position:relative;
+  }
+  .opt:hover{border-color:var(--line-2)}
+  .opt.sel{border-color:var(--orange);background:#3a2418}
+  .opt.disabled{opacity:.38;cursor:not-allowed}
+  .opt .t{font-size:14px;font-weight:600;margin-bottom:1px}
+  .opt .s{font-size:11px;color:var(--txt-dim)}
+  .opt .tag{
+    position:absolute;top:9px;right:10px;font-size:9px;font-weight:700;
+    background:var(--orange);color:#000;padding:2px 6px;border-radius:10px;letter-spacing:.5px;
+  }
+  .opt .tag.soon{background:var(--line-2);color:var(--txt-dim)}
+
+  /* search box */
+  .searchbox{
+    width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--txt);
+    padding:11px 13px;border-radius:var(--r);font-size:13.5px;margin-bottom:9px;
+    font-family:inherit;
+  }
+  .searchbox:focus{outline:none;border-color:var(--orange)}
+  .model-list{max-height:230px;overflow-y:auto;display:grid;gap:6px;padding-right:2px}
+  .model-list::-webkit-scrollbar{width:5px}
+  .model-list::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:3px}
+  .chip-row{display:flex;gap:7px;flex-wrap:wrap}
+  .chip{
+    background:var(--panel-2);border:1px solid var(--line);color:var(--txt-dim);
+    padding:8px 13px;border-radius:20px;font-size:12.5px;cursor:pointer;transition:.15s;
+  }
+  .chip:hover{border-color:var(--line-2);color:var(--txt)}
+  .chip.sel{border-color:var(--orange);background:#3a2418;color:var(--txt)}
+
+  /* mask canvas */
+  .area-label{font-size:12px;color:var(--txt-dim);margin-bottom:9px}
+  .area-toggle{
+    display:flex;align-items:center;gap:8px;font-size:13px;color:var(--txt-dim);
+    background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r);
+    padding:12px 14px;cursor:pointer;transition:.15s;
+  }
+  .area-toggle:hover{border-color:var(--line-2);color:var(--txt)}
+  .area-toggle.on{border-color:var(--orange);color:var(--txt)}
+  .area-toggle .box-ic{font-size:16px}
+  .area-toggle .tg{margin-left:auto;font-size:10px;font-weight:700;padding:3px 9px;border-radius:10px;background:var(--line-2);color:var(--txt-dim);letter-spacing:.5px}
+  .area-toggle.on .tg{background:var(--orange);color:#000}
+  .mask-wrap{position:relative;border-radius:var(--r);overflow:hidden;background:#000;touch-action:none;user-select:none}
+  .mask-wrap img{width:100%;display:block;max-height:380px;object-fit:contain;pointer-events:none}
+  .mask-canvas{position:absolute;inset:0;cursor:crosshair}
+  .mask-hint{font-size:12px;color:var(--txt-dim);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+  .mask-hint b{color:var(--orange)}
+  .mask-actions{display:flex;gap:8px;margin-top:10px}
+  .mini-btn{
+    background:var(--panel-2);border:1px solid var(--line-2);color:var(--txt-dim);
+    padding:8px 14px;border-radius:var(--r);font-size:12px;cursor:pointer;font-family:inherit;
+  }
+  .mini-btn:hover{color:var(--txt);border-color:var(--orange)}
+  .mini-btn.done-btn{background:var(--orange);color:#000;border-color:var(--orange);font-weight:600}
+  .mini-btn.done-btn:hover{background:var(--orange-soft);color:#000}
+  .mini-btn.done-btn:disabled{background:var(--panel-2);color:var(--txt-dim2);border-color:var(--line);cursor:not-allowed}
+
+  /* generate */
+  .gen{
+    width:100%;background:var(--orange);color:#000;border:none;cursor:pointer;
+    font-family:'Anton';font-size:18px;letter-spacing:.5px;padding:18px;
+    border-radius:var(--r);margin-top:6px;transition:.15s;
+  }
+  .gen:hover:not(:disabled){background:var(--orange-soft);transform:translateY(-1px)}
+  .gen:disabled{background:#2a2a2a;color:#555;cursor:not-allowed}
+
+  /* result */
+  .result{margin-top:26px;display:none}
+  .result.show{display:block;animation:rise .4s ease}
+  @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  .result-h{font-family:'Anton';font-size:22px;margin-bottom:4px}
+  .result-h .o{color:var(--orange)}
+  .compare{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0}
+  .compare figure{border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:#000}
+  .compare figcaption{font-size:10px;color:var(--txt-dim);text-transform:uppercase;letter-spacing:1px;padding:7px 10px;border-bottom:1px solid var(--line)}
+  .compare img{width:100%;display:block;height:200px;object-fit:cover}
+  .spec{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+    padding:13px 16px;margin-bottom:12px;font-size:13px;display:flex;flex-wrap:wrap;gap:6px 18px;
+  }
+  .spec span{color:var(--txt-dim)}.spec b{color:var(--txt);font-weight:600}
+  .disc{font-size:11px;color:var(--txt-dim2);border-left:2px solid var(--orange);padding:7px 0 7px 11px;margin-bottom:16px;line-height:1.5}
+  .cta-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .cta{
+    border:none;border-radius:var(--r);padding:15px 8px;cursor:pointer;font-family:inherit;
+    font-size:13px;font-weight:600;transition:.15s;display:flex;flex-direction:column;align-items:center;gap:5px;
+  }
+  .cta .ci{font-size:18px}
+  .cta.dl{background:var(--panel-2);border:1px solid var(--line-2);color:var(--txt)}
+  .cta.dl:hover{border-color:var(--orange)}
+  .cta.est{background:var(--panel-2);border:1px solid var(--line-2);color:var(--txt)}
+  .cta.est:hover{border-color:var(--orange)}
+  .cta.kakao{background:#FEE500;color:#191600}
+  .cta.kakao:hover{filter:brightness(1.05)}
+
+  /* estimate form */
+  .est-form{
+    margin-top:12px;background:var(--panel);border:1px solid var(--orange);
+    border-radius:var(--r);padding:18px;display:none;
+  }
+  .est-form.show{display:block;animation:rise .3s}
+  .est-form h3{font-size:15px;margin-bottom:13px}
+  .est-form input,.est-form textarea{
+    width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--txt);
+    padding:11px 13px;border-radius:var(--r);font-size:13.5px;margin-bottom:9px;font-family:inherit;
+  }
+  .est-form input:focus,.est-form textarea:focus{outline:none;border-color:var(--orange)}
+  .est-form .send{width:100%;background:var(--orange);color:#000;border:none;padding:13px;border-radius:var(--r);font-weight:700;font-size:14px;cursor:pointer;font-family:inherit}
+  .est-note{font-size:11px;color:var(--txt-dim);margin-top:8px;text-align:center}
+
+  /* loading */
+  .loading{display:none;text-align:center;padding:30px}
+  .loading.show{display:block}
+  .spinner{width:38px;height:38px;border:3px solid var(--line);border-top-color:var(--orange);border-radius:50%;margin:0 auto 14px;animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loading p{font-size:13px;color:var(--txt-dim)}
+
+  .demo-flag{
+    background:#1a1407;border:1px solid #4a3a10;color:#d4a93a;font-size:11.5px;
+    padding:9px 13px;border-radius:var(--r);margin-bottom:20px;line-height:1.5;
+  }
+  footer{margin-top:38px;padding-top:18px;border-top:1px solid var(--line);text-align:center;font-size:11px;color:var(--txt-dim2);letter-spacing:.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="mark">SK</div>
+      <div class="nm">STONE<span>KIM</span></div>
+    </div>
+    <div class="badge">AI 시안 시뮬레이터</div>
+  </header>
+
+  <div class="hero">
+    <div class="eyebrow">Material Visualizer</div>
+    <h1>내 공간에<br><span class="o">자재</span>를 입혀보세요</h1>
+    <p>공간 사진을 올리고 원하는 자재와 위치를 선택하면, 실제 시공 느낌의 시안을 즉시 만들어 드립니다.</p>
+  </div>
+
+  <div class="demo-flag" id="demoFlag" style="display:none">
+    ⚙️ 생성 준비 완료
+  </div>
+
+  <!-- STEP 1: 사진 -->
+  <div class="card active" id="card1">
+    <div class="card-h"><div class="step-n">1</div><h2>공간 사진</h2><div class="sel-val" id="v1"></div></div>
+    <div class="card-b">
+      <div class="drop" id="drop" onclick="document.getElementById('file').click()">
+        <div class="ic">⬆</div>
+        <p><b>사진 선택</b> 또는 드래그</p>
+      </div>
+      <input type="file" id="file" accept="image/*" hidden>
+    </div>
+  </div>
+
+  <!-- STEP 2: 제품 -->
+  <div class="card" id="card2">
+    <div class="card-h"><div class="step-n">2</div><h2>제품</h2><div class="sel-val" id="v2"></div></div>
+    <div class="card-b"><div class="opt-grid cols3" id="productGrid"></div></div>
+  </div>
+
+  <!-- STEP 3: 라인 -->
+  <div class="card" id="card3">
+    <div class="card-h"><div class="step-n">3</div><h2>라인</h2><div class="sel-val" id="v3"></div></div>
+    <div class="card-b"><div class="opt-grid cols2" id="lineGrid"></div></div>
+  </div>
+
+  <!-- STEP 4: 모델 -->
+  <div class="card" id="card4">
+    <div class="card-h"><div class="step-n">4</div><h2>모델명</h2><div class="sel-val" id="v4"></div></div>
+    <div class="card-b">
+      <input type="text" class="searchbox" id="modelSearch" placeholder="🔍 모델 검색 (예: White, T-A013, 그레이)">
+      <div class="model-list" id="modelList"></div>
+    </div>
+  </div>
+
+  <!-- STEP 5: 사이즈 -->
+  <div class="card" id="card5">
+    <div class="card-h"><div class="step-n">5</div><h2>사이즈 (mm)</h2><div class="sel-val" id="v5"></div></div>
+    <div class="card-b"><div class="chip-row" id="sizeRow"></div></div>
+  </div>
+
+  <!-- STEP 6: 부위 -->
+  <div class="card" id="card6">
+    <div class="card-h"><div class="step-n">6</div><h2>적용 부위 지정</h2><div class="sel-val" id="v6"></div></div>
+    <div class="card-b">
+      <div class="area-label">빠른 선택 — 넓은 면은 버튼으로 간편하게</div>
+      <div class="chip-row" id="areaChips" style="margin-bottom:14px"></div>
+      <div class="area-toggle" id="areaToggle" onclick="toggleDraw()">
+        <span class="box-ic">⬚</span> 직접 영역 지정 (콕 집어서 정밀하게)
+        <span class="tg" id="tgState">OFF</span>
+      </div>
+      <div id="drawArea" style="display:none;margin-top:12px">
+        <div class="mask-hint">📐 벽·기둥 <b>모서리를 순서대로 톡톡</b> 찍으세요. 비스듬한 벽도 모양대로 따라갑니다. 다 찍었으면 <b>[✓ 영역 완성]</b></div>
+        <div class="mask-wrap" id="maskWrap"></div>
+        <div class="mask-actions">
+          <button class="mini-btn done-btn" id="polyDone" onclick="closePoly()">✓ 영역 완성</button>
+          <button class="mini-btn" onclick="undoPoint()">⤺ 한 점 취소</button>
+          <button class="mini-btn" onclick="clearMask()">↺ 전체 지우기</button>
+        </div>
+        <span style="font-size:11px;color:var(--txt-dim2);display:block;margin-top:7px" id="maskInfo"></span>
+      </div>
+    </div>
+  </div>
+
+  <button class="gen" id="genBtn" disabled onclick="generate()">시안 생성하기</button>
+
+  <!-- LOADING -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <p>자재를 공간에 입히는 중입니다…</p>
+  </div>
+
+  <!-- RESULT -->
+  <div class="result" id="result">
+    <div class="result-h">생성된 <span class="o">시안</span></div>
+    <div class="compare">
+      <figure><figcaption>BEFORE — 원본</figcaption><img id="beforeImg" alt=""></figure>
+      <figure><figcaption style="color:var(--orange)">AFTER — 시안</figcaption><img id="afterImg" alt=""></figure>
+    </div>
+    <div class="spec" id="resultSpec"></div>
+    <div class="disc">본 이미지는 AI 참고 시안입니다. 실제 시공물은 자재 색상·줄눈·조명 환경에 따라 차이가 있을 수 있습니다.</div>
+    <div class="cta-row">
+      <button class="cta dl" onclick="downloadImg()"><span class="ci">⬇</span>다운로드</button>
+      <button class="cta est" onclick="toggleEst()"><span class="ci">📋</span>견적 문의</button>
+      <a class="cta kakao" href="https://pf.kakao.com/" target="_blank" style="text-decoration:none"><span class="ci">💬</span>카톡 상담</a>
+    </div>
+    <div class="est-form" id="estForm">
+      <h3>견적 문의</h3>
+      <input type="text" id="estName" placeholder="성함 / 업체명">
+      <input type="text" id="estPhone" placeholder="연락처">
+      <textarea id="estMemo" rows="2" placeholder="문의 내용 (선택)"></textarea>
+      <button class="send" onclick="sendEst()">문의 보내기</button>
+      <div class="est-note" id="estNote">선택하신 자재 정보가 함께 전송됩니다</div>
+    </div>
+  </div>
+
+  <footer>STONE KIM · AI MATERIAL VISUALIZER — PREVIEW v1</footer>
+</div>
+
+<!-- 자재 데이터 인라인 (미리보기용 — 실제 배포 시 materials.js 파일로 분리) -->
+<script>
+const MATERIALS = {"softstone":{"name":"소프트스톤","en":"Soft Stone","ready":true,"lines":{"travertine":{"name":"트래버틴 라인","en":"Travertine Line","surface":"벽","look":"자연 트래버틴 특유의 가로결과 미세한 공극(기공)이 보이는 차분한 석재 패널, 무광에 가까운 자연스러운 질감","sizes":["600x1200","600x2400","1200x2400"],"models":[{"code":"T-A005","name":"Roman White","color":"화이트"},{"code":"T-A006","name":"Roman Yellow","color":"옐로우"},{"code":"T-A007","name":"Claybank","color":"베이지"},{"code":"T-A008","name":"Red","color":"레드"},{"code":"T-A009","name":"Light Grey","color":"라이트그레이"},{"code":"T-A013","name":"White","color":"화이트","best":true},{"code":"T-A014","name":"Yellow","color":"옐로우","best":true},{"code":"T-A015","name":"Gray","color":"그레이","best":true},{"code":"T-A069","name":"Red Travertine","color":"레드"},{"code":"T-A070","name":"Grey Travertine","color":"그레이"},{"code":"T-A071","name":"Brown Travertine","color":"브라운"},{"code":"T-A072","name":"White Travertine","color":"화이트","best":true},{"code":"T-A073","name":"Light Brown Wood","color":"라이트브라운"},{"code":"T-A074","name":"Yellow Wood","color":"옐로우"},{"code":"T-A075","name":"Light Grey Wood","color":"라이트그레이"},{"code":"T-A079","name":"Runa Light Grey","color":"라이트그레이"},{"code":"T-A080","name":"Runa Light Brown","color":"라이트브라운"},{"code":"T-A081","name":"Runa Light Yellow","color":"라이트옐로우"},{"code":"T-A088","name":"Beige","color":"베이지"},{"code":"T-A089","name":"Cream Yellow","color":"크림옐로우"},{"code":"T-A090","name":"Grey","color":"그레이"},{"code":"T-A091","name":"Light Brown","color":"라이트브라운"},{"code":"T-A092","name":"Taupe","color":"토프"},{"code":"T-C008","name":"Sardin White","color":"화이트","tag":"NEW"},{"code":"T-K010","name":"Pure White","color":"퓨어화이트"},{"code":"T-K011","name":"Beige","color":"베이지"},{"code":"T-K012","name":"Light Grey","color":"라이트그레이"},{"code":"T-K013","name":"Medium Grey","color":"미디엄그레이"},{"code":"T-K014","name":"Dark Grey","color":"다크그레이"},{"code":"T-K044","name":"Beige","color":"베이지"},{"code":"T-K045","name":"Pure White","color":"퓨어화이트"},{"code":"T-K046","name":"Concrete","color":"콘크리트"},{"code":"T-K047","name":"Gradient Yellow","color":"그라데이션옐로우","best":true},{"code":"T-K048","name":"Ivory White","color":"아이보리화이트"},{"code":"T-K049","name":"White Golden","color":"화이트골든"},{"code":"T-K050","name":"Golden Rust Cave","color":"골든러스트"},{"code":"T-K051","name":"Golden Grey","color":"골든그레이"},{"code":"T-S005","name":"Pure White","color":"퓨어화이트","best":true},{"code":"T-S006","name":"Beige","color":"베이지"},{"code":"T-S007","name":"Concrete","color":"콘크리트"},{"code":"T-S008","name":"Gradient Yellow","color":"그라데이션옐로우"},{"code":"T-S009","name":"White Golden","color":"화이트골든"},{"code":"T-S010","name":"Golden Grey","color":"골든그레이"},{"code":"T-S011","name":"Gradient Grey","color":"그라데이션그레이"}]},"concrete":{"name":"노출콘크리트 라인","en":"Exposed Concrete Line","surface":"벽","look":"매끈하면서 미세한 기공과 얼룩이 자연스럽게 들어간 무광 회색 노출콘크리트 질감, 군더더기 없는 미니멀한 면","sizes":["600x1200","600x2400","1200x2400"],"models":[{"code":"C-A016","name":"Concrete A16","color":"그레이"},{"code":"C-A017","name":"Concrete A17","color":"그레이"},{"code":"C-A018","name":"Concrete A18","color":"그레이"},{"code":"C-B001","name":"Concrete B01","color":"그레이"},{"code":"C-B002","name":"Concrete B02","color":"그레이"},{"code":"C-B003","name":"Concrete B03","color":"그레이"},{"code":"C-B004","name":"Concrete B04","color":"그레이"},{"code":"C-B005","name":"Concrete B05","color":"그레이"},{"code":"C-B006","name":"Concrete B06","color":"그레이"},{"code":"C-B007","name":"Concrete B07","color":"그레이"},{"code":"C-B008","name":"Concrete B08","color":"그레이"},{"code":"C-B013","name":"Concrete B13","color":"그레이"},{"code":"C-B014","name":"Concrete B14","color":"그레이"},{"code":"C-B015","name":"Concrete B15","color":"그레이"},{"code":"C-B016","name":"Concrete B16","color":"그레이"},{"code":"C-B017","name":"Concrete B17","color":"그레이"},{"code":"C-B018","name":"Concrete B18","color":"그레이"},{"code":"C-K001","name":"Concrete K01","color":"그레이"},{"code":"C-K002","name":"Concrete K02","color":"그레이"},{"code":"C-K003","name":"Concrete K03","color":"그레이"},{"code":"C-K004","name":"Concrete K04","color":"그레이"},{"code":"C-K005","name":"Concrete K05","color":"그레이"},{"code":"C-K006","name":"Concrete K06","color":"그레이"},{"code":"C-K007","name":"Beige/Grey/Red","color":"혼합"},{"code":"C-K017","name":"Beige","color":"베이지"},{"code":"C-K041","name":"Concrete K41","color":"그레이"},{"code":"C-K042","name":"Concrete K42","color":"그레이"},{"code":"C-K043","name":"Gradient Grey","color":"그라데이션그레이"},{"code":"C-K065","name":"Medium Grey","color":"미디엄그레이"}]},"stone":{"name":"스톤 라인","en":"Stone Line","surface":"벽","look":"천연석의 자연스러운 색 편차와 입체적인 질감이 살아있는 석재 패널, 표면에 미세한 요철감","sizes":["600x1200","600x2400","1200x2400"],"models":[{"code":"S-A053","name":"Stone A53","color":"내추럴"},{"code":"S-A054","name":"Stone A54","color":"내추럴"},{"code":"S-A058","name":"Stone A58","color":"내추럴"},{"code":"S-C015","name":"Cartier White","color":"화이트"},{"code":"S-C018","name":"Shale Brown","color":"브라운"},{"code":"S-C020","name":"Stone C20","color":"내추럴"},{"code":"S-C021","name":"Stone C21","color":"내추럴"},{"code":"S-C036","name":"Andes Yellow","color":"옐로우"},{"code":"S-C052","name":"White Sesame","color":"화이트"},{"code":"S-C083","name":"Cartier White","color":"화이트"},{"code":"S-C117","name":"Stone C117","color":"내추럴"},{"code":"S-K015","name":"Stone K15","color":"내추럴"},{"code":"S-K016","name":"Stone K16","color":"내추럴"},{"code":"S-K030","name":"Stone K30","color":"내추럴"},{"code":"S-K031","name":"Stone K31","color":"내추럴"},{"code":"S-K032","name":"Stone K32","color":"내추럴"},{"code":"S-K035","name":"Stone K35","color":"내추럴"},{"code":"S-K036","name":"Stone K36","color":"내추럴"},{"code":"S-K052","name":"Stone K52","color":"내추럴"},{"code":"S-K053","name":"Stone K53","color":"내추럴"},{"code":"S-K054","name":"Beige/Yellow/Light Grey","color":"혼합"},{"code":"S-K055","name":"Stone K55","color":"내추럴"},{"code":"S-K056","name":"Stone K56","color":"내추럴"},{"code":"S-K057","name":"Stone K57","color":"내추럴"},{"code":"S-K058","name":"Stone K58","color":"내추럴"},{"code":"S-K059","name":"Stone K59","color":"내추럴"},{"code":"S-K060","name":"Stone K60","color":"내추럴"},{"code":"S-K061","name":"Beige/Light Grey/Yellow","color":"혼합"},{"code":"S-K062","name":"Stone K62","color":"내추럴"},{"code":"S-K063","name":"Stone K63","color":"내추럴"},{"code":"S-S012","name":"Stone S12","color":"내추럴"},{"code":"S-S013","name":"Stone S13","color":"내추럴"},{"code":"S-S014","name":"Stone S14","color":"내추럴"},{"code":"S-S015","name":"Stone S15","color":"내추럴"},{"code":"S-S016","name":"Stone S16","color":"내추럴"},{"code":"S-S038","name":"Stone S38","color":"내추럴"},{"code":"S-S039","name":"Stone S39","color":"내추럴"},{"code":"S-S040","name":"Stone S40","color":"내추럴"},{"code":"S-S041","name":"Stone S41","color":"내추럴"},{"code":"S-S042","name":"Stone S42","color":"내추럴"}]},"marble":{"name":"대리석 라인","en":"Marble Line","surface":"벽","look":"선명한 마블 베이닝(결무늬)이 흐르는 고급스러운 대리석 패널, 은은한 광택","sizes":["600x1200","1200x2400"],"models":[{"code":"M-A001","name":"Marble A01","color":"화이트"},{"code":"M-A002","name":"Marble A02","color":"화이트"},{"code":"M-A003","name":"Marble A03","color":"화이트"},{"code":"M-A004","name":"Marble A04","color":"화이트"},{"code":"M-A025","name":"Marble A25","color":"내추럴"},{"code":"M-A026","name":"Marble A26","color":"내추럴"},{"code":"M-A034","name":"Marble A34","color":"내추럴"},{"code":"M-A035","name":"Marble A35","color":"내추럴"},{"code":"M-A036","name":"Marble A36","color":"내추럴"},{"code":"M-A037","name":"Marble A37","color":"내추럴"},{"code":"M-A038","name":"Marble A38","color":"내추럴"},{"code":"M-A039","name":"Marble A39","color":"내추럴"},{"code":"M-C087","name":"Quicksand Red","color":"레드"}]},"wood":{"name":"스페셜 라인 (우드)","en":"Special Line (Wood)","surface":"벽","look":"따뜻한 나뭇결이 살아있는 우드 패널, 세로 골(리브) 형태로 시공되는 자연스러운 목재 질감","sizes":["600x3000","1200x3000","190x1200","590x2400","1190x2400"],"models":[{"code":"SW-A060","name":"Light Yellow","color":"라이트옐로우"},{"code":"SW-A061","name":"Yellow","color":"옐로우"},{"code":"SW-A062","name":"Light Brown","color":"라이트브라운"},{"code":"SW-A063","name":"Dark Brown","color":"다크브라운"},{"code":"SW-A064","name":"Dark Brown","color":"다크브라운"},{"code":"SW-A065","name":"Brown","color":"브라운","best":true},{"code":"SW-A066","name":"Khaki","color":"카키"},{"code":"SW-A067","name":"Yellow","color":"옐로우"},{"code":"SW-A068","name":"Light Brown","color":"라이트브라운"},{"code":"SW-K037","name":"Original","color":"오리지널"},{"code":"SW-K038","name":"Red","color":"레드"}]},"herringbone":{"name":"스페셜 라인 (헤링본)","en":"Special Line (Herringbone)","surface":"바닥","look":"V자로 엇갈리게 시공된 헤링본 패턴, 규칙적이고 리듬감 있는 결, 주로 바닥에 시공","sizes":["기타"],"models":[{"code":"SH-C176","name":"Yellow","color":"옐로우"},{"code":"SH-K078","name":"Herringbone K78","color":"내추럴"},{"code":"SH-K079","name":"Herringbone K79","color":"내추럴"},{"code":"SH-K080","name":"Herringbone K80","color":"내추럴"},{"code":"SH-K081","name":"Herringbone K81","color":"내추럴"},{"code":"SH-S001","name":"Herringbone S01","color":"내추럴"},{"code":"SH-S002","name":"Herringbone S02","color":"내추럴"},{"code":"SH-S003","name":"Herringbone S03","color":"내추럴"},{"code":"SH-S004","name":"Herringbone S04","color":"내추럴"},{"code":"SH-S030","name":"Herringbone S30","color":"내추럴"},{"code":"SH-S031","name":"Herringbone S31","color":"내추럴"},{"code":"SH-S032","name":"Herringbone S32","color":"내추럴"},{"code":"SH-S033","name":"Herringbone S33","color":"내추럴"},{"code":"SH-S034","name":"Herringbone S34","color":"내추럴"},{"code":"SH-S035","name":"Herringbone S35","color":"내추럴"},{"code":"SH-S036","name":"Herringbone S36","color":"내추럴"},{"code":"SH-S037","name":"Herringbone S37","color":"내추럴"}]}}},"cockstone":{"name":"콕스톤","en":"Cock Stone","ready":false,"lines":{}},"stanleypanel":{"name":"스탠리패널","en":"Stanley Panel","ready":false,"lines":{}}};
+
+// 미리보기용 샘플 after 이미지 (실제론 AI 생성)
+// (배포본 — 실제 AI 생성)
+
+let st={img:null,product:null,line:null,model:null,size:null,mask:null,area:null,areaMode:'quick'};
+
+/* ---------- STEP 2: 제품 ---------- */
+const pg=document.getElementById('productGrid');
+Object.entries(MATERIALS).forEach(([k,p])=>{
+  const el=document.createElement('div');
+  el.className='opt'+(p.ready?'':' disabled');
+  el.innerHTML=`<div class="t">${p.name}</div><div class="s">${p.ready?Object.keys(p.lines).length+'개 라인':'준비중'}</div>`+(p.ready?'':'<span class="tag soon">SOON</span>');
+  if(p.ready) el.onclick=()=>selProduct(k,el);
+  pg.appendChild(el);
+});
+function selProduct(k,el){
+  st.product=k;st.line=st.model=st.size=null;
+  pg.querySelectorAll('.opt').forEach(x=>x.classList.remove('sel'));el.classList.add('sel');
+  document.getElementById('v2').textContent=MATERIALS[k].name;
+  // build lines
+  const lg=document.getElementById('lineGrid');lg.innerHTML='';
+  Object.entries(MATERIALS[k].lines).forEach(([lk,l])=>{
+    const le=document.createElement('div');le.className='opt';
+    le.innerHTML=`<div class="t">${l.name}</div><div class="s">${l.models.length}종 · ${l.surface}</div>`;
+    le.onclick=()=>selLine(lk,le);lg.appendChild(le);
+  });
+  document.getElementById('v3').textContent='';document.getElementById('v4').textContent='';document.getElementById('v5').textContent='';
+  advance(3);refreshGen();
+}
+/* ---------- STEP 3: 라인 ---------- */
+function selLine(lk,el){
+  st.line=lk;st.model=st.size=null;
+  document.getElementById('lineGrid').querySelectorAll('.opt').forEach(x=>x.classList.remove('sel'));el.classList.add('sel');
+  const l=MATERIALS[st.product].lines[lk];
+  document.getElementById('v3').textContent=l.name;
+  buildModels('');document.getElementById('modelSearch').value='';
+  document.getElementById('v4').textContent='';document.getElementById('v5').textContent='';
+  advance(4);refreshGen();
+}
+/* ---------- STEP 4: 모델 (검색) ---------- */
+document.getElementById('modelSearch').oninput=e=>buildModels(e.target.value);
+function buildModels(q){
+  const l=MATERIALS[st.product].lines[st.line];
+  const ml=document.getElementById('modelList');ml.innerHTML='';
+  q=q.trim().toLowerCase();
+  l.models.filter(m=>!q||m.code.toLowerCase().includes(q)||m.name.toLowerCase().includes(q)||(m.color||'').toLowerCase().includes(q))
+   .forEach(m=>{
+     const e=document.createElement('div');e.className='opt';
+     e.innerHTML=`<div class="t">${m.code} · ${m.name}</div><div class="s">${m.color||''}</div>`+
+       (m.best?'<span class="tag">BEST</span>':(m.tag?`<span class="tag">${m.tag}</span>`:''));
+     e.onclick=()=>selModel(m,e);ml.appendChild(e);
+   });
+  if(!ml.children.length) ml.innerHTML='<div style="font-size:12px;color:var(--txt-dim2);padding:10px">검색 결과 없음</div>';
+}
+function selModel(m,el){
+  st.model=m;st.size=null;
+  document.getElementById('modelList').querySelectorAll('.opt').forEach(x=>x.classList.remove('sel'));el.classList.add('sel');
+  document.getElementById('v4').textContent=m.code+' '+m.name;
+  // sizes
+  const l=MATERIALS[st.product].lines[st.line];
+  const sr=document.getElementById('sizeRow');sr.innerHTML='';
+  l.sizes.forEach(s=>{
+    const c=document.createElement('div');c.className='chip';c.textContent=s;
+    c.onclick=()=>selSize(s,c);sr.appendChild(c);
+  });
+  document.getElementById('v5').textContent='';
+  advance(5);refreshGen();
+}
+/* ---------- STEP 5: 사이즈 ---------- */
+function selSize(s,el){
+  st.size=s;
+  document.getElementById('sizeRow').querySelectorAll('.chip').forEach(x=>x.classList.remove('sel'));el.classList.add('sel');
+  document.getElementById('v5').textContent=s;
+  advance(6);refreshGen();
+}
+
+/* ---------- STEP 1: 업로드 ---------- */
+const drop=document.getElementById('drop'),fileI=document.getElementById('file');
+fileI.onchange=e=>loadImg(e.target.files[0]);
+drop.ondragover=e=>{e.preventDefault();drop.style.borderColor='var(--orange)'};
+drop.ondragleave=()=>drop.style.borderColor='';
+drop.ondrop=e=>{e.preventDefault();drop.style.borderColor='';loadImg(e.dataTransfer.files[0])};
+function loadImg(f){
+  if(!f||!f.type.startsWith('image/'))return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    st.img=ev.target.result;
+    drop.classList.add('has');drop.innerHTML=`<img src="${ev.target.result}">`;
+    document.getElementById('v1').textContent='✓ 업로드됨';
+    buildMask();advance(2);refreshGen();
+  };
+  r.readAsDataURL(f);
+}
+
+/* ---------- STEP 6: 네모박스 마스킹 ---------- */
+const AREA_PRESETS=["벽 전체","정면 벽","왼쪽 벽","오른쪽 벽","기둥","바닥"];
+function buildAreaChips(){
+  const ac=document.getElementById('areaChips');ac.innerHTML='';
+  AREA_PRESETS.forEach(a=>{
+    const c=document.createElement('div');c.className='chip';c.textContent=a;
+    c.onclick=()=>{
+      ac.querySelectorAll('.chip').forEach(x=>x.classList.remove('sel'));c.classList.add('sel');
+      st.area=a;st.areaMode='quick';st.mask=null;
+      // 드래그 영역 닫기
+      document.getElementById('drawArea').style.display='none';
+      document.getElementById('areaToggle').classList.remove('on');
+      document.getElementById('tgState').textContent='OFF';
+      document.getElementById('v6').textContent='✓ '+a;
+      refreshGen();
+    };
+    ac.appendChild(c);
+  });
+}
+function toggleDraw(){
+  const da=document.getElementById('drawArea'),tg=document.getElementById('areaToggle'),ts=document.getElementById('tgState');
+  const on=da.style.display==='none';
+  da.style.display=on?'block':'none';
+  tg.classList.toggle('on',on);ts.textContent=on?'ON':'OFF';
+  if(on){
+    // 드래그 모드 켜면 빠른선택 해제
+    document.getElementById('areaChips').querySelectorAll('.chip').forEach(x=>x.classList.remove('sel'));
+    st.area=null;st.areaMode='draw';st.mask=null;points=[];
+    document.getElementById('v6').textContent='';
+    const btn=document.getElementById('polyDone');if(btn)btn.disabled=true;
+    if(ctx&&canvas)ctx.clearRect(0,0,canvas.width,canvas.height);
+    setTimeout(sizeCanvas,100);setTimeout(sizeCanvas,400);
+  }
+  refreshGen();
+}
+
+let canvas,ctx,maskImgEl=null,points=[];
+function buildMask(){
+  buildAreaChips();
+  points=[];
+  const mw=document.getElementById('maskWrap');
+  mw.innerHTML=`<img id="maskImg" src="${st.img}"><canvas class="mask-canvas" id="maskCanvas"></canvas>`;
+  maskImgEl=document.getElementById('maskImg');
+  canvas=document.getElementById('maskCanvas');
+  ctx=canvas.getContext('2d');
+  maskImgEl.onload=sizeCanvas;
+  const getXY=e=>{const r=canvas.getBoundingClientRect();const t=e.changedTouches&&e.changedTouches[0]?e.changedTouches[0]:(e.touches&&e.touches[0]?e.touches[0]:e);return[t.clientX-r.left,t.clientY-r.top];};
+  const tap=e=>{
+    e.preventDefault();sizeCanvas();
+    const[x,y]=getXY(e);
+    points.push([x,y]);
+    if(st.mask){st.mask=null;st.area=null;document.getElementById('v6').textContent='';}
+    drawPoly(false);
+    updateMaskState();
+  };
+  canvas.addEventListener('click',tap);
+  canvas.addEventListener('touchend',tap,{passive:false});
+}
+function drawPoly(closed){
+  if(!ctx)return;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(points.length===0)return;
+  // 채움
+  ctx.beginPath();
+  ctx.moveTo(points[0][0],points[0][1]);
+  for(let i=1;i<points.length;i++)ctx.lineTo(points[i][0],points[i][1]);
+  if(closed)ctx.closePath();
+  ctx.fillStyle='rgba(255,90,31,0.22)';
+  if(closed||points.length>2)ctx.fill();
+  ctx.strokeStyle='#ff5a1f';ctx.lineWidth=2;ctx.stroke();
+  // 점 표시
+  points.forEach((p,i)=>{
+    ctx.beginPath();
+    ctx.arc(p[0],p[1], 5, 0,Math.PI*2);
+    ctx.fillStyle='#ff5a1f';
+    ctx.fill();
+    ctx.lineWidth=2;ctx.strokeStyle='#fff';ctx.stroke();
+  });
+}
+function closePoly(){
+  if(points.length<3){
+    document.getElementById('maskInfo').textContent='모서리를 3개 이상 찍어주세요';
+    return;
+  }
+  drawPoly(true);
+  st.mask={poly:points.slice()};st.area='직접 지정 영역';st.areaMode='draw';
+  document.getElementById('v6').textContent='✓ 영역 지정됨';
+  document.getElementById('maskInfo').textContent=`점 ${points.length}개로 영역 완성 ✓`;
+  refreshGen();
+}
+function updateMaskState(){
+  const n=points.length;
+  const btn=document.getElementById('polyDone');
+  if(btn)btn.disabled=n<3;
+  if(n===0){document.getElementById('maskInfo').textContent='';}
+  else if(n<3){document.getElementById('maskInfo').textContent=`점 ${n}개 — 모서리를 계속 찍으세요`;}
+  else{document.getElementById('maskInfo').textContent=`점 ${n}개 — 다 찍었으면 [✓ 영역 완성]`;}
+}
+function sizeCanvas(){
+  if(!canvas||!maskImgEl)return;
+  const w=maskImgEl.clientWidth,h=maskImgEl.clientHeight;
+  if(w>0&&h>0&&(canvas.width!==w||canvas.height!==h)){
+    canvas.width=w;canvas.height=h;
+    drawPoly(st.mask&&st.mask.poly?true:false);
+  }
+}
+function undoPoint(){
+  if(points.length===0)return;
+  points.pop();
+  st.mask=null;
+  if(st.area==='직접 지정 영역'){st.area=null;document.getElementById('v6').textContent='';}
+  drawPoly(false);updateMaskState();refreshGen();
+}
+function clearMask(){points=[];if(ctx)ctx.clearRect(0,0,canvas.width,canvas.height);st.mask=null;st.area=null;
+  document.getElementById('v6').textContent='';document.getElementById('maskInfo').textContent='';refreshGen();}
+
+/* ---------- helpers ---------- */
+function advance(n){
+  for(let i=1;i<=6;i++){
+    const c=document.getElementById('card'+i);
+    c.classList.remove('active');
+    if(i<n)c.classList.add('done');else c.classList.remove('done');
+  }
+  const cur=document.getElementById('card'+n);cur.classList.add('active');
+  cur.scrollIntoView({behavior:'smooth',block:'center'});
+  if(n===6){setTimeout(sizeCanvas,300);setTimeout(sizeCanvas,700);}
+}
+function refreshGen(){
+  document.getElementById('genBtn').disabled=!(st.img&&st.product&&st.line&&st.model&&st.size&&st.area);
+}
+
+/* ---------- 황금 프롬프트 생성 ---------- */
+function buildPrompt(){
+  const l=MATERIALS[st.product].lines[st.line];
+  const m=st.model;
+  const area=st.area;
+  const sizeTxt = st.size && st.size!=='기타' ? `${st.size} 크기 패널이 붙은 느낌으로, 패널 사이 줄눈(이음선)이 자연스럽게 보이게` : '자재 패턴이 자연스럽게 이어지게';
+  return `첨부한 공간 사진에서 ${area} 부분을 "${MATERIALS[st.product].name} ${l.name} ${m.code} ${m.name}" 자재로 마감한 완성된 인테리어 모습으로 만들어줘.
+
+자재 느낌: ${l.look||'자연스러운 마감재 질감'}
+
+조건:
+- 마스크로 지정한 영역(${area})에만 자재를 적용하고, 나머지 면·구조는 현재 상태 그대로 유지
+- ${sizeTxt}
+- 공사가 끝난 완성 상태로, 작업자·공사도구·자재 더미는 모두 제거
+- 천장 골조, 창밖 풍경, 기둥 위치 등 기존 공간 구조는 그대로 유지
+- 과장 없이 실제 시공 느낌으로 사실적으로(photorealistic), 조명은 자연스러운 수준으로만
+- 화려한 CG 느낌이나 과한 광택은 피하고 실제 현장에 가깝게`;
+}
+
+/* ---------- 원본을 정사각형 1024로 정규화 (API size 규격 맞춤) ---------- */
+function normalizeImage(dataURL){
+  return new Promise(resolve=>{
+    const img=new Image();
+    img.onload=()=>{
+      const S=1024;
+      const c=document.createElement('canvas');c.width=S;c.height=S;
+      const cx=c.getContext('2d');
+      cx.fillStyle='#ffffff';cx.fillRect(0,0,S,S);
+      // contain 방식으로 중앙 배치
+      const r=Math.min(S/img.width,S/img.height);
+      const w=img.width*r,h=img.height*r;
+      cx.drawImage(img,(S-w)/2,(S-h)/2,w,h);
+      resolve({url:c.toDataURL('image/png'),drawW:w,drawH:h,offX:(S-w)/2,offY:(S-h)/2});
+    };
+    img.src=dataURL;
+  });
+}
+
+/* ---------- generate (실제 API) ---------- */
+let lastResult=null;
+async function generate(){
+  document.getElementById('genBtn').style.display='none';
+  document.getElementById('loading').classList.add('show');
+  try{
+    // 1) 원본 정규화 (1024 정사각)
+    const norm=await normalizeImage(st.img);
+    // 2) 마스크 생성 (점찍기 했을 때만) — 정규화된 좌표계에 맞춰 다시 그림
+    let maskURL=null;
+    if(st.mask && st.mask.poly && st.mask.poly.length>=3){
+      maskURL=buildMaskNormalized(norm);
+    }
+    // 3) 프롬프트
+    const prompt=buildPrompt();
+    // 4) 서버 호출
+    const resp=await fetch('/api/generate',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({image:norm.url, mask:maskURL, prompt, size:'1024x1024'})
+    });
+    const data=await resp.json();
+    if(!resp.ok) throw new Error(data.error||'생성 실패');
+    // 5) 결과 표시
+    lastResult=data.image;
+    document.getElementById('beforeImg').src=st.img;
+    document.getElementById('afterImg').src=data.image;
+    const l=MATERIALS[st.product].lines[st.line];
+    document.getElementById('resultSpec').innerHTML=
+      `<span>제품</span> <b>${MATERIALS[st.product].name}</b>
+       <span>라인</span> <b>${l.name}</b>
+       <span>모델</span> <b>${st.model.code} ${st.model.name}</b>
+       <span>사이즈</span> <b>${st.size}</b>
+       <span>적용부위</span> <b>${st.area}</b>`;
+    const r=document.getElementById('result');r.classList.add('show');
+    r.scrollIntoView({behavior:'smooth',block:'start'});
+  }catch(e){
+    alert('시안 생성 중 오류:\n'+e.message+'\n\n(API 키·결제 설정을 확인해주세요)');
+  }finally{
+    document.getElementById('loading').classList.remove('show');
+    document.getElementById('genBtn').style.display='block';
+  }
+}
+
+// 정규화된 1024 좌표계 기준 마스크 (offset/scale 반영)
+function buildMaskNormalized(norm){
+  const S=1024;
+  const dispW=canvas.width, dispH=canvas.height;
+  // 화면 캔버스 좌표 → 원본이미지 비율 → 정규화 배치 좌표
+  const sx=norm.drawW/dispW, sy=norm.drawH/dispH;
+  const mc=document.createElement('canvas');mc.width=S;mc.height=S;
+  const mctx=mc.getContext('2d');
+  mctx.fillStyle='rgba(0,0,0,1)';mctx.fillRect(0,0,S,S);
+  mctx.globalCompositeOperation='destination-out';
+  mctx.beginPath();
+  const p=st.mask.poly;
+  mctx.moveTo(norm.offX+p[0][0]*sx, norm.offY+p[0][1]*sy);
+  for(let i=1;i<p.length;i++) mctx.lineTo(norm.offX+p[i][0]*sx, norm.offY+p[i][1]*sy);
+  mctx.closePath();mctx.fill();
+  return mc.toDataURL('image/png');
+}
+
+function downloadImg(){
+  if(!lastResult)return;
+  const a=document.createElement('a');
+  a.href=lastResult;
+  a.download=`stonekim_시안_${st.model.code}_${Date.now()}.png`;
+  a.click();
+}
+function toggleEst(){document.getElementById('estForm').classList.toggle('show');}
+function sendEst(){
+  const n=document.getElementById('estName').value.trim();
+  if(!n){alert('성함/업체명을 입력해주세요');return;}
+  // (최소버전) 카톡 안내. 이메일 발송은 다음 단계에서 연결.
+  const l=MATERIALS[st.product].lines[st.line];
+  const info=`[견적문의]\n성함/업체: ${n}\n연락처: ${document.getElementById('estPhone').value}\n자재: ${MATERIALS[st.product].name} ${l.name} ${st.model.code} ${st.model.name} / ${st.size} / ${st.area}\n메모: ${document.getElementById('estMemo').value}`;
+  document.getElementById('estForm').innerHTML=
+    '<h3 style="color:var(--orange)">✓ 접수되었습니다</h3><p style="font-size:13px;color:var(--txt-dim)">아래 정보를 카톡 상담으로 보내주시면 빠르게 견적 안내드립니다.</p><textarea rows="5" style="width:100%;margin-top:8px;background:var(--panel-2);border:1px solid var(--line);color:var(--txt);padding:10px;border-radius:4px;font-size:12px" readonly>'+info+'</textarea>';
+}
+window.addEventListener('resize',sizeCanvas);
+</script>
+</body>
+</html>
