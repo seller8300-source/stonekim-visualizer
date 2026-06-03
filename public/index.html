@@ -241,7 +241,7 @@
 
   <div class="hero">
     <div class="eyebrow">Material Visualizer</div>
-    <h1>내 공간에<br><span class="o">자재</span>를 입혀보세요</h1>
+    <h1>내 공간에,<br><span class="o">스톤킴</span>의 자재를 입혀보세요</h1>
     <p>공간 사진을 올리고 원하는 자재와 위치를 선택하면, 실제 시공 느낌의 시안을 즉시 만들어 드립니다.</p>
   </div>
 
@@ -397,7 +397,8 @@ function buildModels(q){
   l.models.filter(m=>!q||m.code.toLowerCase().includes(q)||m.name.toLowerCase().includes(q)||(m.color||'').toLowerCase().includes(q))
    .forEach(m=>{
      const e=document.createElement('div');e.className='opt';
-     e.innerHTML=`<div class="t">${m.code} · ${m.name}</div><div class="s">${m.color||''}</div>`+
+     const hasReal=SWATCH_MODELS.includes(m.code);
+     e.innerHTML=`<div class="t">${m.code} · ${m.name} ${hasReal?'<span style="color:#3ad17a;font-size:10px">● 실사진</span>':''}</div><div class="s">${m.color||''}</div>`+
        (m.best?'<span class="tag">BEST</span>':(m.tag?`<span class="tag">${m.tag}</span>`:''));
      e.onclick=()=>selModel(m,e);ml.appendChild(e);
    });
@@ -575,17 +576,21 @@ function refreshGen(){
 }
 
 /* ---------- 황금 프롬프트 생성 ---------- */
-function buildPrompt(){
+function buildPrompt(hasSwatch){
   const l=MATERIALS[st.product].lines[st.line];
   const m=st.model;
   const area=st.area;
-  const sizeTxt = st.size && st.size!=='기타' ? `${st.size} 크기 패널이 붙은 느낌으로, 패널 사이 줄눈(이음선)이 자연스럽게 보이게` : '자재 패턴이 자연스럽게 이어지게';
-  return `첨부한 공간 사진에서 ${area} 부분을 "${MATERIALS[st.product].name} ${l.name} ${m.code} ${m.name}" 자재로 마감한 완성된 인테리어 모습으로 만들어줘.
-
-자재 느낌: ${l.look||'자연스러운 마감재 질감'}
+  const sizeTxt = st.size && st.size!=='기타'
+    ? `자재 1장의 실제 규격은 ${st.size}mm 입니다. 이 큰 패널이 붙은 느낌으로 패널 사이 줄눈(이음선) 간격을 실제 규격에 맞게 넓게 표현하고, 작은 타일처럼 잘게 쪼개지 마세요`
+    : '자재 패턴이 자연스럽게 이어지게 하세요';
+  const swatchTxt = hasSwatch
+    ? `\n\n[중요] 함께 첨부한 두 번째 이미지가 실제 적용할 자재(${m.code} ${m.name})의 실제 표면 텍스처입니다. 색감·무늬·결을 이 텍스처와 최대한 동일하게 재현하세요. 상상으로 만들지 말고 첨부된 실제 텍스처를 그대로 사용하세요.`
+    : '';
+  return `첨부한 첫 번째 이미지(공간 사진)에서 ${area} 부분을 "${MATERIALS[st.product].name} ${l.name} ${m.code} ${m.name}" 자재로 마감한 완성된 인테리어 모습으로 만들어줘.${swatchTxt}
 
 조건:
-- 마스크로 지정한 영역(${area})에만 자재를 적용하고, 나머지 면·구조는 현재 상태 그대로 유지
+- 지정한 영역(${area})에만 자재를 적용하고, 나머지 면·구조는 현재 상태 그대로 유지
+- 원본에 창문/유리가 있으면 벽으로 바꾸지 말고 그대로 유지. 실제로 자재를 붙일 수 있는 면에만 적용
 - ${sizeTxt}
 - 공사가 끝난 완성 상태로, 작업자·공사도구·자재 더미는 모두 제거
 - 천장 골조, 창밖 풍경, 기둥 위치 등 기존 공간 구조는 그대로 유지
@@ -612,30 +617,29 @@ function normalizeImage(dataURL){
   });
 }
 
+// 실제 텍스처 사진이 등록된 모델코드 목록 (swatches 폴더에 있는 것)
+const SWATCH_MODELS = ['T-A013','T-A014','T-A015'];
+
 /* ---------- generate (실제 API) ---------- */
 let lastResult=null;
 async function generate(){
   document.getElementById('genBtn').style.display='none';
   document.getElementById('loading').classList.add('show');
   try{
-    // 1) 원본 정규화 (1024 정사각)
     const norm=await normalizeImage(st.img);
-    // 2) 마스크 생성 (점찍기 했을 때만) — 정규화된 좌표계에 맞춰 다시 그림
     let maskURL=null;
     if(st.mask && st.mask.poly && st.mask.poly.length>=3){
       maskURL=buildMaskNormalized(norm);
     }
-    // 3) 프롬프트
-    const prompt=buildPrompt();
-    // 4) 서버 호출
+    const hasSwatch = SWATCH_MODELS.includes(st.model.code);
+    const prompt=buildPrompt(hasSwatch);
     const resp=await fetch('/api/generate',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({image:norm.url, mask:maskURL, prompt, size:'1024x1024'})
+      body:JSON.stringify({image:norm.url, mask:maskURL, prompt, size:'1024x1024', modelCode:st.model.code})
     });
     const data=await resp.json();
     if(!resp.ok) throw new Error(data.error||'생성 실패');
-    // 5) 결과 표시
     lastResult=data.image;
     document.getElementById('beforeImg').src=st.img;
     document.getElementById('afterImg').src=data.image;
